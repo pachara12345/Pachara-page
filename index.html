@@ -68,25 +68,25 @@
     <section id="attendance" class="card attendance-card">
       <div class="section-title">เช็คชื่อด้วยโลเคชั่น</div>
       <p>เช็คอินต้องอยู่ไม่เกิน 1 กม. จากมหาวิทยาลัยราชภัฏเทพสตรี เท่านั้น</p>
-      <div class="warning-text">ถ้าเปิดผ่าน GitHub Repo viewer ระบบ JavaScript ไม่ทำงานเต็มที่ ให้ใช้ GitHub Pages หรือเว็บเซิร์ฟเวอร์แทน</div>
-      <p class="hint-text">หาก Google Chrome เปิดไฟล์ตรง ๆ (`file://`) ช่องตำแหน่งอัตโนมัติจะใช้งานไม่ได้ ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัด/ค้นหาที่อยู่แทน</p>
+      <div class="warning-text">ถ้าเปิดผ่าน GitHub Repo viewer หรือไฟล์ตรง ๆ ระบบตำแหน่งอัตโนมัติอาจไม่ทำงาน ให้ใช้ GitHub Pages หรือเว็บเซิร์ฟเวอร์แทน</div>
+      <p class="hint-text">ระบบนี้ใช้ Leaflet + OpenStreetMap ฟรี หากเบราว์เซอร์รองรับจะใช้ GPS ได้ แต่ถ้าไม่สามารถใช้งาน ให้เลือกตำแหน่งเองบนแผนที่</p>
       <div class="attendance-form">
         <label for="userName">ชื่อผู้ใช้งาน</label>
         <input id="userName" type="text" placeholder="กรอกชื่อของคุณ" />
-        <button id="requestLocation" class="btn-primary">ใช้ตำแหน่งอัตโนมัติ (ถ้าเบราว์เซอร์รองรับ)</button>
-        <div class="manual-location">
-          <label>หรือตั้งค่าตำแหน่งด้วยตัวเอง</label>
-          <div class="manual-grid">
-            <input id="manualLat" type="text" placeholder="Latitude" />
-            <input id="manualLng" type="text" placeholder="Longitude" />
-          </div>
-          <button id="setManualLocation" class="btn-secondary">เลือกพิกัดด้วยตัวเอง</button>
-          <div class="location-search">
-            <input id="searchAddress" type="text" placeholder="ค้นหาจากที่อยู่ เช่น ราชภัฏเทพสตรี" />
-            <button id="searchAddressButton" class="btn-secondary">ค้นหา</button>
-          </div>
-        </div>
+        <button id="requestLocation" class="btn-primary">ขอพิกัดอัตโนมัติ</button>
         <button id="checkIn" class="btn-secondary" disabled>เช็คชื่อ</button>
+      </div>
+      <div class="attendance-form">
+        <label>กรอกพิกัดเองหรือค้นหาที่อยู่</label>
+        <div class="manual-grid">
+          <input id="manualLat" type="text" placeholder="Latitude" />
+          <input id="manualLng" type="text" placeholder="Longitude" />
+        </div>
+        <button id="setManualLocation" class="btn-secondary">ตั้งค่าพิกัดเอง</button>
+        <div class="location-search">
+          <input id="searchAddress" type="text" placeholder="ค้นหาจากที่อยู่ เช่น ราชภัฏเทพสตรี" />
+          <button id="searchAddressButton" class="btn-secondary">ค้นหา</button>
+        </div>
       </div>
       <div id="locationHint" class="location-hint">คลิกแผนที่เพื่อเลือกตำแหน่งของคุณ หรือกรอกพิกัดเองด้านบน</div>
       <div id="attendanceStatus" class="attendance-status">สถานะ: ยังไม่ได้รับตำแหน่ง</div>
@@ -217,21 +217,14 @@
 
     function setLocation(position) {
       currentPosition = position.coords;
-      const distance = getDistance(position.coords.latitude, position.coords.longitude, allowedLocation.lat, allowedLocation.lng);
-      distanceInfo.textContent = `ตำแหน่งปัจจุบัน: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} | ระยะห่างจากมหาวิทยาลัย ${distance} เมตร`;
       if (userMarker) {
         map.removeLayer(userMarker);
       }
       userMarker = L.marker([position.coords.latitude, position.coords.longitude])
         .addTo(map)
-        .bindPopup('ตำแหน่งปัจจุบันของคุณ');
-      if (distance <= allowedRadius) {
-        updateStatus(`พร้อมเช็คชื่อ (อยู่ในรัศมี ${allowedRadius} ม.)`, true);
-        checkInButton.disabled = false;
-      } else {
-        updateStatus(`อยู่ห่างเกินรัศมี ${allowedRadius} ม.`, false);
-        checkInButton.disabled = true;
-      }
+        .bindPopup('ตำแหน่งปัจจุบันของคุณ')
+        .openPopup();
+      updateDistance();
       map.flyTo([position.coords.latitude, position.coords.longitude], 15, { duration: 1 });
     }
 
@@ -243,47 +236,40 @@
       }[error.code] || 'เกิดข้อผิดพลาดในการรับตำแหน่ง';
       const extra = !window.isSecureContext ? ' (ให้ใช้ HTTPS หรือ localhost)' : '';
       updateStatus(`${message}${extra}`, false);
-      updateHint();
       distanceInfo.textContent = '';
     }
 
     function updateHint() {
       const hint = document.getElementById('locationHint');
       if (!navigator.geolocation) {
-        hint.textContent = 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานตำแหน่ง โดยให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
+        hint.textContent = 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับตำแหน่ง ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
         locationButton.disabled = true;
         return;
       }
       if (!window.isSecureContext) {
-        hint.innerHTML = 'ตำแหน่งอัตโนมัติอาจไม่ทำงานบนไฟล์โดยตรง ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
+        hint.innerHTML = 'ตำแหน่งอัตโนมัติอาจไม่ทำงานบนไฟล์โดยตรงหรือ GitHub viewer ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
         locationButton.disabled = true;
         return;
       }
-      hint.textContent = 'กดปุ่มขออนุญาตตำแหน่ง แล้วอนุญาตกล่องคำขอจากเบราว์เซอร์';
+      hint.textContent = 'กดปุ่มขอพิกัดอัตโนมัติ แล้วอนุญาตการใช้งานตำแหน่งจากเบราว์เซอร์';
       locationButton.disabled = false;
     }
 
     function canUseGeolocation() {
-      if (!navigator.geolocation || !window.isSecureContext) {
-        return false;
-      }
-      return true;
+      return navigator.geolocation && window.isSecureContext;
     }
 
-    window.addEventListener('load', updateHint);
+    window.addEventListener('load', () => {
+      updateHint();
+      loadHistory();
+    });
 
     locationButton.addEventListener('click', () => {
       if (!canUseGeolocation()) {
         return;
       }
-      updateStatus('กำลังขออนุญาตตำแหน่ง...');
-      updateHint();
-      try {
-        navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
-      } catch (err) {
-        updateStatus('เกิดข้อผิดพลาดในการขอพิกัด', false);
-        updateHint();
-      }
+      updateStatus('กำลังขอพิกัดจากอุปกรณ์...', false);
+      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
     });
 
     setManualButton.addEventListener('click', () => {
@@ -330,7 +316,7 @@
         return;
       }
       if (!currentPosition) {
-        updateStatus('ยังไม่มีตำแหน่งปัจจุบัน', false);
+        updateStatus('ยังไม่มีตำแหน่งที่เลือก', false);
         return;
       }
       const distance = getDistance(currentPosition.latitude, currentPosition.longitude, allowedLocation.lat, allowedLocation.lng);
@@ -344,8 +330,6 @@
       saveRecord(record);
       updateStatus(success ? 'เช็คชื่อสำเร็จ' : 'เช็คชื่อไม่ผ่าน', success);
     });
-
-    loadHistory();
   </script>
 </body>
 </html>

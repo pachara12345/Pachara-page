@@ -149,43 +149,63 @@ section { margin-bottom: 24px; }
   background: rgba(30, 41, 59, 0.95);
 }
 
-.attendance-form {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.manual-location {
-  display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.manual-grid {
+.location-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 18px;
+  margin-bottom: 18px;
 }
 
-.manual-grid input {
+.location-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.location-card label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.location-card input {
+  width: 100%;
+}
+
+.location-card button {
   width: 100%;
 }
 
 .location-search {
   display: grid;
   gap: 10px;
+  margin-bottom: 12px;
 }
 
-.location-search input {
+.manual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.manual-grid input {
   width: 100%;
 }
 
 .hint-text {
   color: #cbd5e1;
   font-size: 0.95rem;
+  margin-top: 12px;
+}
+
+.warning-text {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.25);
+  padding: 12px 14px;
+  border-radius: 14px;
   margin-bottom: 12px;
 }
 
