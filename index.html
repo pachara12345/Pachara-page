@@ -75,6 +75,7 @@
         <button id="requestLocation" class="btn-primary">ขออนุญาตใช้ตำแหน่ง</button>
         <button id="checkIn" class="btn-secondary" disabled>เช็คชื่อ</button>
       </div>
+      <div id="locationHint" class="location-hint">ตรวจสอบสถานะการใช้ตำแหน่งหลังจากกดปุ่มแล้ว</div>
       <div id="attendanceStatus" class="attendance-status">สถานะ: ยังไม่ได้รับตำแหน่ง</div>
       <div id="distanceInfo" class="attendance-info"></div>
       <div id="map" class="map-view"></div>
@@ -195,27 +196,51 @@
       }[error.code] || 'เกิดข้อผิดพลาดในการรับตำแหน่ง';
       const extra = !window.isSecureContext ? ' (ให้ใช้ HTTPS หรือ localhost)' : '';
       updateStatus(`${message}${extra}`, false);
+      updateHint();
       distanceInfo.textContent = '';
+    }
+
+    function updateHint() {
+      const hint = document.getElementById('locationHint');
+      if (!navigator.geolocation) {
+        hint.textContent = 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานตำแหน่ง';
+        return;
+      }
+      if (!window.isSecureContext) {
+        hint.innerHTML = 'โปรดเปิดหน้าเว็บผ่าน <strong>http://localhost</strong> หรือ <strong>HTTPS</strong> เพื่อให้ Geolocation ทำงานได้';
+        return;
+      }
+      hint.textContent = 'กดปุ่มขออนุญาตตำแหน่ง แล้วอนุญาตกล่องคำขอจากเบราว์เซอร์';
     }
 
     function canUseGeolocation() {
       if (!navigator.geolocation) {
         updateStatus('อุปกรณ์ไม่รองรับ Geolocation', false);
+        updateHint();
         return false;
       }
       if (!window.isSecureContext) {
         updateStatus('ต้องเปิดผ่าน HTTPS หรือ localhost เพื่อใช้ตำแหน่ง', false);
+        updateHint();
         return false;
       }
       return true;
     }
+
+    window.addEventListener('load', updateHint);
 
     locationButton.addEventListener('click', () => {
       if (!canUseGeolocation()) {
         return;
       }
       updateStatus('กำลังขออนุญาตตำแหน่ง...');
-      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
+      updateHint();
+      try {
+        navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
+      } catch (err) {
+        updateStatus('เกิดข้อผิดพลาดในการขอพิกัด', false);
+        updateHint();
+      }
     });
 
     checkInButton.addEventListener('click', () => {

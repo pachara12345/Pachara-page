@@ -203,6 +203,12 @@ section { margin-bottom: 24px; }
   margin-bottom: 12px;
 }
 
+.location-hint {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
 .history-list {
   display: grid;
   gap: 12px;
