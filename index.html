@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Portfolio | Pachara</title>
   <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-o9N1j7kZk+0pR7gYSJmNd3vO51dMnxEX8VHm9zLP7hA=" crossorigin="" />
 </head>
 <body>
   <div class="container">
@@ -65,24 +67,16 @@
 
     <section id="attendance" class="card attendance-card">
       <div class="section-title">เช็คชื่อด้วยโลเคชั่น</div>
-      <p>ระบบเช็คชื่อสามารถใช้ได้ฟรีผ่านเบราว์เซอร์ ไม่ต้องมีเซิร์ฟเวอร์ ตราบใดที่ผู้ใช้อนุญาตแชร์ตำแหน่ง</p>
+      <p>เช็คอินต้องอยู่ไม่เกิน 1 กม. จากมหาวิทยาลัยราชภัฏเทพสตรี เท่านั้น</p>
       <div class="attendance-form">
         <label for="userName">ชื่อผู้ใช้งาน</label>
         <input id="userName" type="text" placeholder="กรอกชื่อของคุณ" />
-
-        <div class="target-group">
-          <label for="targetLat">Latitude (พิกัดเป้าหมาย)</label>
-          <input id="targetLat" type="text" placeholder="13.736717" value="13.736717" />
-          <label for="targetLng">Longitude (พิกัดเป้าหมาย)</label>
-          <input id="targetLng" type="text" placeholder="100.523186" value="100.523186" />
-          <button id="setTargetLocation" class="btn-secondary">ตั้งค่าจุดเช็คชื่อ</button>
-        </div>
-
         <button id="requestLocation" class="btn-primary">ขออนุญาตใช้ตำแหน่ง</button>
         <button id="checkIn" class="btn-secondary" disabled>เช็คชื่อ</button>
       </div>
       <div id="attendanceStatus" class="attendance-status">สถานะ: ยังไม่ได้รับตำแหน่ง</div>
       <div id="distanceInfo" class="attendance-info"></div>
+      <div id="map" class="map-view"></div>
       <div id="attendanceHistory" class="history-list"></div>
     </section>
 
@@ -95,19 +89,42 @@
 
   <footer>© 2026 Pachara. All rights reserved.</footer>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o8O9y0tRua5b6vYcw5YrFjVj8ZJw5y0O6aF2tvA6u7A=" crossorigin=""></script>
+
   <script>
-    let allowedLocation = { lat: 13.736717, lng: 100.523186 };
-    const allowedRadius = 200; // ระยะอนุญาตในเมตร
+    const allowedLocation = { lat: 14.805630, lng: 100.651270 };
+    const allowedRadius = 1000; // ระยะอนุญาตในเมตร
     const locationButton = document.getElementById('requestLocation');
     const checkInButton = document.getElementById('checkIn');
-    const setTargetButton = document.getElementById('setTargetLocation');
-    const targetLatInput = document.getElementById('targetLat');
-    const targetLngInput = document.getElementById('targetLng');
     const statusText = document.getElementById('attendanceStatus');
     const distanceInfo = document.getElementById('distanceInfo');
     const historyEl = document.getElementById('attendanceHistory');
     const userNameInput = document.getElementById('userName');
     let currentPosition = null;
+    let userMarker = null;
+    const map = L.map('map', {
+      center: [allowedLocation.lat, allowedLocation.lng],
+      zoom: 15,
+      scrollWheelZoom: false,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+
+    L.marker([allowedLocation.lat, allowedLocation.lng])
+      .addTo(map)
+      .bindPopup('มหาวิทยาลัยราชภัฏเทพสตรี')
+      .openPopup();
+
+    L.circle([allowedLocation.lat, allowedLocation.lng], {
+      radius: allowedRadius,
+      color: '#38bdf8',
+      fillColor: 'rgba(56,189,248,0.18)',
+      fillOpacity: 0.35,
+    }).addTo(map);
 
     function loadHistory() {
       const stored = localStorage.getItem('attendanceRecords');
@@ -152,7 +169,13 @@
     function setLocation(position) {
       currentPosition = position.coords;
       const distance = getDistance(position.coords.latitude, position.coords.longitude, allowedLocation.lat, allowedLocation.lng);
-      distanceInfo.textContent = `ตำแหน่งปัจจุบัน: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} | ระยะห่างจากจุดเช็คชื่อ ${distance} เมตร`;
+      distanceInfo.textContent = `ตำแหน่งปัจจุบัน: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} | ระยะห่างจากมหาวิทยาลัย ${distance} เมตร`;
+      if (userMarker) {
+        map.removeLayer(userMarker);
+      }
+      userMarker = L.marker([position.coords.latitude, position.coords.longitude])
+        .addTo(map)
+        .bindPopup('ตำแหน่งปัจจุบันของคุณ');
       if (distance <= allowedRadius) {
         updateStatus(`พร้อมเช็คชื่อ (อยู่ในรัศมี ${allowedRadius} ม.)`, true);
         checkInButton.disabled = false;
@@ -160,6 +183,7 @@
         updateStatus(`อยู่ห่างเกินรัศมี ${allowedRadius} ม.`, false);
         checkInButton.disabled = true;
       }
+      map.flyTo([position.coords.latitude, position.coords.longitude], 15, { duration: 1 });
     }
 
     function handleError(error) {
@@ -172,37 +196,13 @@
       distanceInfo.textContent = '';
     }
 
-    function parseTargetLocation() {
-      const lat = parseFloat(targetLatInput.value.trim());
-      const lng = parseFloat(targetLngInput.value.trim());
-      if (Number.isNaN(lat) || Number.isNaN(lng)) {
-        updateStatus('พิกัดเป้าหมายไม่ถูกต้อง', false);
-        return null;
-      }
-      return { lat, lng };
-    }
-
-    function updateTargetLocation() {
-      const parsed = parseTargetLocation();
-      if (!parsed) return;
-      allowedLocation = parsed;
-      updateStatus(`ตั้งค่าจุดเช็คชื่อใหม่แล้ว: ${allowedLocation.lat.toFixed(6)}, ${allowedLocation.lng.toFixed(6)}`, true);
-      if (currentPosition) {
-        setLocation({ coords: currentPosition });
-      }
-    }
-
     locationButton.addEventListener('click', () => {
       if (!navigator.geolocation) {
         updateStatus('อุปกรณ์ไม่รองรับ Geolocation', false);
         return;
       }
       updateStatus('กำลังขออนุญาตตำแหน่ง...');
-      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 15000 });
-    });
-
-    setTargetButton.addEventListener('click', () => {
-      updateTargetLocation();
+      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000 });
     });
 
     checkInButton.addEventListener('click', () => {
