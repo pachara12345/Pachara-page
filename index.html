@@ -68,6 +68,7 @@
     <section id="attendance" class="card attendance-card">
       <div class="section-title">เช็คชื่อด้วยโลเคชั่น</div>
       <p>เช็คอินต้องอยู่ไม่เกิน 1 กม. จากมหาวิทยาลัยราชภัฏเทพสตรี เท่านั้น</p>
+      <p class="hint-text">หากค้นหาตำแหน่งไม่ได้ ให้เปิดผ่าน `http://localhost` หรือใช้ VS Code Live Server แทนการเปิดไฟล์ตรง ๆ</p>
       <div class="attendance-form">
         <label for="userName">ชื่อผู้ใช้งาน</label>
         <input id="userName" type="text" placeholder="กรอกชื่อของคุณ" />
@@ -192,17 +193,29 @@
         2: 'ไม่สามารถระบุตำแหน่งได้',
         3: 'การขอข้อมูลตำแหน่งหมดเวลา'
       }[error.code] || 'เกิดข้อผิดพลาดในการรับตำแหน่ง';
-      updateStatus(message, false);
+      const extra = !window.isSecureContext ? ' (ให้ใช้ HTTPS หรือ localhost)' : '';
+      updateStatus(`${message}${extra}`, false);
       distanceInfo.textContent = '';
     }
 
-    locationButton.addEventListener('click', () => {
+    function canUseGeolocation() {
       if (!navigator.geolocation) {
         updateStatus('อุปกรณ์ไม่รองรับ Geolocation', false);
+        return false;
+      }
+      if (!window.isSecureContext) {
+        updateStatus('ต้องเปิดผ่าน HTTPS หรือ localhost เพื่อใช้ตำแหน่ง', false);
+        return false;
+      }
+      return true;
+    }
+
+    locationButton.addEventListener('click', () => {
+      if (!canUseGeolocation()) {
         return;
       }
       updateStatus('กำลังขออนุญาตตำแหน่ง...');
-      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000 });
+      navigator.geolocation.getCurrentPosition(setLocation, handleError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
     });
 
     checkInButton.addEventListener('click', () => {

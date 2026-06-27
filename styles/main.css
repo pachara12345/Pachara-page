@@ -155,6 +155,12 @@ section { margin-bottom: 24px; }
   margin-bottom: 16px;
 }
 
+.hint-text {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
 .map-view {
   width: 100%;
   height: 320px;
