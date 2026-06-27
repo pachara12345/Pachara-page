@@ -68,14 +68,22 @@
     <section id="attendance" class="card attendance-card">
       <div class="section-title">เช็คชื่อด้วยโลเคชั่น</div>
       <p>เช็คอินต้องอยู่ไม่เกิน 1 กม. จากมหาวิทยาลัยราชภัฏเทพสตรี เท่านั้น</p>
-      <p class="hint-text">หากค้นหาตำแหน่งไม่ได้ ให้เปิดผ่าน `http://localhost` หรือใช้ VS Code Live Server แทนการเปิดไฟล์ตรง ๆ</p>
+      <p class="hint-text">หากเบราว์เซอร์ไม่อนุญาตตำแหน่งหรือเปิดด้วยไฟล์โดยตรง ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดด้วยตัวเองด้านล่าง</p>
       <div class="attendance-form">
         <label for="userName">ชื่อผู้ใช้งาน</label>
         <input id="userName" type="text" placeholder="กรอกชื่อของคุณ" />
-        <button id="requestLocation" class="btn-primary">ขออนุญาตใช้ตำแหน่ง</button>
+        <button id="requestLocation" class="btn-primary">ใช้ตำแหน่งอัตโนมัติ (ถ้าเบราว์เซอร์รองรับ)</button>
+        <div class="manual-location">
+          <label>หรือตั้งค่าตำแหน่งด้วยตัวเอง</label>
+          <div class="manual-grid">
+            <input id="manualLat" type="text" placeholder="Latitude" />
+            <input id="manualLng" type="text" placeholder="Longitude" />
+          </div>
+          <button id="setManualLocation" class="btn-secondary">เลือกพิกัดด้วยตัวเอง</button>
+        </div>
         <button id="checkIn" class="btn-secondary" disabled>เช็คชื่อ</button>
       </div>
-      <div id="locationHint" class="location-hint">ตรวจสอบสถานะการใช้ตำแหน่งหลังจากกดปุ่มแล้ว</div>
+      <div id="locationHint" class="location-hint">คลิกแผนที่เพื่อเลือกตำแหน่งของคุณ หรือกรอกพิกัดเองด้านบน</div>
       <div id="attendanceStatus" class="attendance-status">สถานะ: ยังไม่ได้รับตำแหน่ง</div>
       <div id="distanceInfo" class="attendance-info"></div>
       <div id="map" class="map-view"></div>
@@ -99,6 +107,9 @@
     const allowedRadius = 1000; // ระยะอนุญาตในเมตร
     const locationButton = document.getElementById('requestLocation');
     const checkInButton = document.getElementById('checkIn');
+    const setManualButton = document.getElementById('setManualLocation');
+    const manualLatInput = document.getElementById('manualLat');
+    const manualLngInput = document.getElementById('manualLng');
     const statusText = document.getElementById('attendanceStatus');
     const distanceInfo = document.getElementById('distanceInfo');
     const historyEl = document.getElementById('attendanceHistory');
@@ -127,6 +138,35 @@
       fillColor: 'rgba(56,189,248,0.18)',
       fillOpacity: 0.35,
     }).addTo(map);
+
+    map.on('click', event => {
+      setSelectedLocation(event.latlng);
+    });
+
+    function setSelectedLocation(latlng) {
+      currentPosition = { latitude: latlng.lat, longitude: latlng.lng };
+      if (userMarker) {
+        map.removeLayer(userMarker);
+      }
+      userMarker = L.marker([latlng.lat, latlng.lng])
+        .addTo(map)
+        .bindPopup('ตำแหน่งที่เลือกของคุณ')
+        .openPopup();
+      updateDistance();
+    }
+
+    function updateDistance() {
+      if (!currentPosition) return;
+      const distance = getDistance(currentPosition.latitude, currentPosition.longitude, allowedLocation.lat, allowedLocation.lng);
+      distanceInfo.textContent = `ตำแหน่งเลือก: ${currentPosition.latitude.toFixed(6)}, ${currentPosition.longitude.toFixed(6)} | ระยะห่าง ${distance} เมตร`;
+      if (distance <= allowedRadius) {
+        updateStatus(`อยู่ในรัศมี ${allowedRadius} ม. พร้อมเช็คชื่อ`, true);
+        checkInButton.disabled = false;
+      } else {
+        updateStatus(`อยู่ห่างเกิน ${allowedRadius} ม. ไม่สามารถเช็คชื่อได้`, false);
+        checkInButton.disabled = true;
+      }
+    }
 
     function loadHistory() {
       const stored = localStorage.getItem('attendanceRecords');
@@ -203,25 +243,21 @@
     function updateHint() {
       const hint = document.getElementById('locationHint');
       if (!navigator.geolocation) {
-        hint.textContent = 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานตำแหน่ง';
+        hint.textContent = 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานตำแหน่ง โดยให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
+        locationButton.disabled = true;
         return;
       }
       if (!window.isSecureContext) {
-        hint.innerHTML = 'โปรดเปิดหน้าเว็บผ่าน <strong>http://localhost</strong> หรือ <strong>HTTPS</strong> เพื่อให้ Geolocation ทำงานได้';
+        hint.innerHTML = 'ตำแหน่งอัตโนมัติอาจไม่ทำงานบนไฟล์โดยตรง ให้เลือกตำแหน่งเองบนแผนที่หรือกรอกพิกัดเอง';
+        locationButton.disabled = true;
         return;
       }
       hint.textContent = 'กดปุ่มขออนุญาตตำแหน่ง แล้วอนุญาตกล่องคำขอจากเบราว์เซอร์';
+      locationButton.disabled = false;
     }
 
     function canUseGeolocation() {
-      if (!navigator.geolocation) {
-        updateStatus('อุปกรณ์ไม่รองรับ Geolocation', false);
-        updateHint();
-        return false;
-      }
-      if (!window.isSecureContext) {
-        updateStatus('ต้องเปิดผ่าน HTTPS หรือ localhost เพื่อใช้ตำแหน่ง', false);
-        updateHint();
+      if (!navigator.geolocation || !window.isSecureContext) {
         return false;
       }
       return true;
@@ -241,6 +277,17 @@
         updateStatus('เกิดข้อผิดพลาดในการขอพิกัด', false);
         updateHint();
       }
+    });
+
+    setManualButton.addEventListener('click', () => {
+      const lat = parseFloat(manualLatInput.value.trim());
+      const lng = parseFloat(manualLngInput.value.trim());
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        updateStatus('พิกัดไม่ถูกต้อง กรุณากรอกตัวเลข Latitude/Longitude', false);
+        return;
+      }
+      setSelectedLocation({ lat, lng });
+      updateStatus('ตั้งค่าตำแหน่งจากพิกัดเรียบร้อยแล้ว', true);
     });
 
     checkInButton.addEventListener('click', () => {
